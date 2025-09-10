@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Trayectoria de Proyectil</title>
+    <script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        .input-section {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 1px solid #e2e8f0;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #4a5568;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .results {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 1px solid #e2e8f0;
+            display: none;
+        }
+        .results h2 {
+            color: #4a5568;
+            margin-top: 0;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .result-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        #graph {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: #e53e3e;
+            background: #fff5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #fed7d7;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulador de Trayectoria de Proyectil</h1>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="tiempo">Tiempo total de vuelo (s):</label>
+                <input type="number" id="tiempo" step="0.01" min="0.01" placeholder="Ej: 2.5">
+            </div>
+            
+            <div class="input-group">
+                <label for="pies">Número de pies recorridos:</label>
+                <input type="number" id="pies" step="0.01" min="0.01" placeholder="Ej: 10">
+            </div>
+            
+            <div class="input-group">
+                <label for="zapato">Tamaño del zapato (cm):</label>
+                <input type="number" id="zapato" step="0.1" min="1" placeholder="Ej: 25.5">
+            </div>
+            
+            <button id="calcular">Calcular y Graficar</button>
+        </div>
+        
+        <div class="error" id="error-message"></div>
+        
+        <div class="results" id="results">
+            <h2>--- Resultados ---</h2>
+            <div class="result-item" id="tiempo-subida"></div>
+            <div class="result-item" id="velocidad-x"></div>
+            <div class="result-item" id="velocidad-y"></div>
+            <div class="result-item" id="altura-max"></div>
+            <div class="result-item" id="alcance-max"></div>
+            <div class="result-item" id="velocidad-inicial"></div>
+        </div>
+        
+        <div id="graph"></div>
+    </div>
+
+    <script>
+        document.getElementById('calcular').addEventListener('click', function() {
+            // Obtener valores
+            const T = parseFloat(document.getElementById('tiempo').value);
+            const n_pies = parseFloat(document.getElementById('pies').value);
+            const tam_zapato_cm = parseFloat(document.getElementById('zapato').value);
+            
+            // Validar entradas
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.style.display = 'none';
+            
+            if (isNaN(T) || isNaN(n_pies) || isNaN(tam_zapato_cm) || T <= 0 || n_pies <= 0 || tam_zapato_cm <= 0) {
+                errorDiv.textContent = 'Por favor, ingrese valores válidos y positivos para todos los campos.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Constante de gravedad
+            const g = 9.8;
+            
+            // Conversiones
+            const tam_zapato_m = tam_zapato_cm / 100;
+            const distancia_total = n_pies * tam_zapato_m;
+            
+            // Cálculos
+            const t_subida = T / 2;
+            const vx = distancia_total / T;
+            const vy = g * t_subida;
+            const h_max = (vy**2) / (2 * g);
+            const x_max = distancia_total;
+            const v0 = Math.sqrt(vx**2 + vy**2);
+            
+            // Mostrar resultados
+            document.getElementById('tiempo-subida').textContent = `Tiempo de subida: ${t_subida.toFixed(2)} s`;
+            document.getElementById('velocidad-x').textContent = `Velocidad horizontal (vx): ${vx.toFixed(2)} m/s`;
+            document.getElementById('velocidad-y').textContent = `Velocidad vertical (vy): ${vy.toFixed(2)} m/s`;
+            document.getElementById('altura-max').textContent = `Altura máxima: ${h_max.toFixed(2)} m`;
+            document.getElementById('alcance-max').textContent = `Alcance máximo (x): ${x_max.toFixed(2)} m`;
+            document.getElementById('velocidad-inicial').textContent = `Velocidad inicial total: ${v0.toFixed(2)} m/s`;
+            
+            document.getElementById('results').style.display = 'block';
+            
+            // Generar datos para la gráfica
+            const puntos = 200;
+            const t = [];
+            const x = [];
+            const y = [];
+            
+            for (let i = 0; i < puntos; i++) {
+                const t_val = (i * T) / (puntos - 1);
+                t.push(t_val);
+                x.push(vx * t_val);
+                y.push(vy * t_val - 0.5 * g * t_val**2);
+            }
+            
+            // Crear gráfica
+            const trace = {
+                x: x,
+                y: y,
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Trayectoria',
+                line: {
+                    color: '#667eea',
+                    width: 3
+                }
+            };
+            
+            const layout = {
+                title: {
+                    text: 'Trayectoria del proyectil',
+                    font: {
+                        size: 20,
+                        color: '#4a5568'
+                    }
+                },
+                xaxis: {
+                    title: 'Distancia horizontal (m)',
+                    gridcolor: '#e2e8f0',
+                    zeroline: true,
+                    zerolinecolor: 'black',
+                    zerolinewidth: 2
+                },
+                yaxis: {
+                    title: 'Altura (m)',
+                    gridcolor: '#e2e8f0',
+                    zeroline: true,
+                    zerolinecolor: 'black',
+                    zerolinewidth: 2
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                showlegend: true,
+                legend: {
+                    x: 0.8,
+                    y: 0.9
+                },
+                margin: {
+                    l: 50,
+                    r: 50,
+                    b: 50,
+                    t: 50,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot('graph', [trace], layout);
+        });
+    </script>
+</body>
+</html>
